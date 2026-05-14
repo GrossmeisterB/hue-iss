@@ -91,19 +91,56 @@ docker compose up -d --build
 
 ## Running on a Synology NAS
 
-DSM users typically aren't in the `docker` group, so the venv path is
-simpler:
+This is the easiest way to keep hue-iss running 24/7. Tested on DSM 7.
+
+### One-time setup on the NAS
+
+1. In DSM, install the **Git** package (Package Center → search "Git").
+2. Enable **SSH** in DSM → Control Panel → Terminal & SNMP → "Enable SSH service".
+3. From your computer, connect to the NAS and install the app:
+
+   ```bash
+   ssh YOUR_USER@your-nas-ip
+   cd /volume1/docker
+   git clone https://github.com/GrossmeisterB/hue-iss.git
+   cd hue-iss
+   ./setup.sh
+   ```
+
+4. Start the app in the background (keeps running after you log out):
+
+   ```bash
+   nohup setsid ./start.sh > data/app.log 2>&1 < /dev/null &
+   ```
+
+5. Open the dashboard from any device on your LAN:
+   `http://your-nas-ip:5057`
+
+### Make it start automatically after a reboot
+
+In DSM:
+
+1. **Control Panel → Task Scheduler → Create → Triggered Task → User-defined script**
+2. Set **Event** to **Boot-up**, **User** to `root`
+3. In the script tab, paste:
+
+   ```bash
+   sudo -u YOUR_USER bash -c "cd /volume1/docker/hue-iss && nohup setsid ./start.sh > data/app.log 2>&1 < /dev/null &"
+   ```
+
+   Replace `YOUR_USER` with your DSM user name.
+4. Save. The app now starts every time the NAS boots.
+
+### Updating later
 
 ```bash
-ssh youruser@your-nas
-mkdir -p /volume1/docker/hue-iss && cd /volume1/docker/hue-iss
-# upload the source (e.g. git clone, or scp/tar from your workstation)
-./setup.sh
+ssh YOUR_USER@your-nas-ip
+cd /volume1/docker/hue-iss
+git pull
+./setup.sh               # picks up any new dependencies
+pkill -f gunicorn ; sleep 2
 nohup setsid ./start.sh > data/app.log 2>&1 < /dev/null &
 ```
-
-For boot persistence, register `/volume1/docker/hue-iss/start.sh` as a
-user-defined script in **DSM → Control Panel → Task Scheduler → "On boot"**.
 
 ## Configuration
 
