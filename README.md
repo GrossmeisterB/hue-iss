@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/title.png" alt="hue-iss — let your Hue lights sign you the next visible ISS pass" width="720">
+</p>
+
 # hue-iss
 
 > Flash your Philips Hue lamp every time the International Space Station passes
