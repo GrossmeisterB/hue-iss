@@ -45,7 +45,7 @@ sunrise. Those are the ones you can spot as a bright moving star.
 
 ## Screenshot
 
-> _(coming soon — add `docs/screenshot.png` and reference it here)_
+![hue-iss dashboard](docs/screenshot.png)
 
 ## Requirements
 
