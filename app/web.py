@@ -130,7 +130,7 @@ def api_location_geocode():
         return jsonify({"error": "query missing"}), 400
     loc = geo.geocode_address(query)
     if loc is None:
-        return jsonify({"error": f"keine Treffer für '{query}'"}), 404
+        return jsonify({"error": f"no match for '{query}'"}), 404
     geo.save_location(loc)
     db.append_event("location_set", {"lat": loc.lat, "lon": loc.lon, "source": "geocoded", "q": query})
     from app.scheduler import get_scheduler
@@ -142,7 +142,7 @@ def api_location_geocode():
 def api_location_ip():
     loc = geo.resolve_via_ip()
     if loc is None:
-        return jsonify({"error": "IP-Geo lookup fehlgeschlagen"}), 502
+        return jsonify({"error": "IP geo lookup failed"}), 502
     geo.save_location(loc)
     db.append_event("location_set", {"lat": loc.lat, "lon": loc.lon, "source": "ip_geo"})
     from app.scheduler import get_scheduler
@@ -182,7 +182,7 @@ def api_effect_test():
     bridge_user = db.get_config("bridge_user")
     light_id_s = data.get("light_id") or db.get_config("light_id")
     if not (bridge_ip and bridge_user and light_id_s):
-        return jsonify({"error": "bridge or light not configured"}), 400
+        return jsonify({"error": "Bridge or lamp not configured"}), 400
 
     def _run():
         try:

@@ -39,20 +39,20 @@ class LightController(Protocol):
 
 EFFECT_PRESETS: dict[str, dict[str, str]] = {
     "soft_breathe_white": {
-        "label": "🌬 Sanftes Pulsieren weiss",
-        "description": "15 s Atem-Effekt, warmweiss",
+        "label": "🌬 Soft white breathe",
+        "description": "15 s breathing effect, warm white",
     },
     "fast_blink_blue": {
-        "label": "⚡ Schneller Blink blau",
-        "description": "5× kurzer Blau-Blink, ~3 s",
+        "label": "⚡ Fast blue blink",
+        "description": "5× short blue blink, ~3 s",
     },
     "iss_sequence": {
-        "label": "🌌 ISS-Sequenz",
-        "description": "Wechsel weiss/blau, ~30 s",
+        "label": "🌌 ISS sequence",
+        "description": "White/blue alternation, ~30 s",
     },
     "single_flash": {
-        "label": "✨ Single Flash",
-        "description": "Einmaliger heller Puls",
+        "label": "✨ Single flash",
+        "description": "One bright pulse",
     },
 }
 

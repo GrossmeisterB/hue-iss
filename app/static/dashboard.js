@@ -23,10 +23,10 @@ document.addEventListener("alpine:init", () => {
     async geocodeAddress() {
       const q = (this.searchQuery || "").trim();
       if (!q) {
-        this.locMsg = "Bitte einen Ort eingeben";
+        this.locMsg = "Type a place to search";
         return;
       }
-      this.locMsg = "Suche '" + q + "'…";
+      this.locMsg = "Searching '" + q + "'…";
       const resp = await fetch("/api/location/geocode", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -37,16 +37,16 @@ document.addEventListener("alpine:init", () => {
         this.loc.lat = data.lat;
         this.loc.lon = data.lon;
         this.loc.label = data.label;
-        this.locMsg = "✓ Gefunden: " + data.label + " · Pässe werden neu berechnet";
+        this.locMsg = "✓ Found: " + data.label + " · recomputing passes";
         this.searchQuery = "";
         setTimeout(() => location.reload(), 1500);
       } else {
-        this.locMsg = data.error || "Keine Treffer";
+        this.locMsg = data.error || "No match";
       }
     },
 
     async saveLocation() {
-      this.locMsg = "Speichere…";
+      this.locMsg = "Saving…";
       const resp = await fetch("/api/location", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -58,20 +58,20 @@ document.addEventListener("alpine:init", () => {
         }),
       });
       const data = await resp.json();
-      this.locMsg = resp.ok ? "✓ Gespeichert · Pässe werden neu berechnet" : data.error || "Fehler";
+      this.locMsg = resp.ok ? "✓ Saved · recomputing passes" : data.error || "Error";
     },
 
     useBrowserGeo() {
       if (!navigator.geolocation) {
-        this.locMsg = "Browser unterstützt keine Geolocation";
+        this.locMsg = "Browser does not support geolocation";
         return;
       }
-      this.locMsg = "Hole GPS…";
+      this.locMsg = "Reading GPS…";
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
           this.loc.lat = +pos.coords.latitude.toFixed(6);
           this.loc.lon = +pos.coords.longitude.toFixed(6);
-          this.loc.label = this.loc.label || "Browser-GPS";
+          this.loc.label = this.loc.label || "Browser GPS";
           await fetch("/api/location", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -82,41 +82,41 @@ document.addEventListener("alpine:init", () => {
               source: "browser_geo",
             }),
           });
-          this.locMsg = "✓ GPS gesetzt · Pässe werden neu berechnet";
+          this.locMsg = "✓ GPS set · recomputing passes";
         },
         (err) => {
-          this.locMsg = "GPS fehlgeschlagen: " + err.message + " (HTTPS oder localhost nötig)";
+          this.locMsg = "GPS failed: " + err.message + " (needs HTTPS or localhost)";
         },
         { enableHighAccuracy: true, timeout: 15000 }
       );
     },
 
     async useIpGeo() {
-      this.locMsg = "Hole IP-Geo…";
+      this.locMsg = "Fetching IP geo…";
       const resp = await fetch("/api/location/ip", { method: "POST" });
       const data = await resp.json();
       if (resp.ok) {
         this.loc.lat = data.lat;
         this.loc.lon = data.lon;
         this.loc.label = data.label;
-        this.locMsg = "✓ IP-Geo gesetzt · Pässe werden neu berechnet";
+        this.locMsg = "✓ IP geo set · recomputing passes";
       } else {
-        this.locMsg = data.error || "IP-Geo fehlgeschlagen";
+        this.locMsg = data.error || "IP geo failed";
       }
     },
 
     async discoverBridge() {
-      this.bridgeMsg = "Suche Bridges…";
+      this.bridgeMsg = "Searching bridges…";
       const resp = await fetch("/api/bridge/discover", { method: "POST" });
       const data = await resp.json();
       this.discoveredBridges = data;
       this.bridgeMsg = data.length
-        ? `${data.length} Bridge(s) gefunden`
-        : "Keine Bridges gefunden";
+        ? `${data.length} bridge(s) found`
+        : "No bridges found";
     },
 
     async pairBridge(ip) {
-      this.bridgeMsg = `Pairing mit ${ip} — drücke den Link-Button…`;
+      this.bridgeMsg = `Pairing with ${ip} — press the bridge Link button…`;
       const resp = await fetch("/api/bridge/pair", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -124,10 +124,10 @@ document.addEventListener("alpine:init", () => {
       });
       const data = await resp.json();
       if (resp.ok) {
-        this.bridgeMsg = "✓ Bridge gepairt — Seite neu laden für Lampenliste";
+        this.bridgeMsg = "✓ Bridge paired — reloading for lamp list";
         setTimeout(() => location.reload(), 1500);
       } else {
-        this.bridgeMsg = "Fehler: " + (data.error || "unbekannt");
+        this.bridgeMsg = "Error: " + (data.error || "unknown");
       }
     },
 
@@ -139,7 +139,7 @@ document.addEventListener("alpine:init", () => {
       });
       if (!resp.ok) {
         const data = await resp.json();
-        this.effectMsg = "Fehler: " + (data.error || "unbekannt");
+        this.effectMsg = "Error: " + (data.error || "unknown");
       }
     },
 
@@ -153,9 +153,9 @@ document.addEventListener("alpine:init", () => {
       });
       const data = await resp.json();
       if (!resp.ok) {
-        this.effectMsg = "Fehler: " + (data.error || "unbekannt");
+        this.effectMsg = "Error: " + (data.error || "unknown");
       } else {
-        this.effectMsg = "▶ Effekt läuft auf gewählter Lampe…";
+        this.effectMsg = "▶ Effect running on selected lamp…";
       }
       setTimeout(() => {
         this.testingEffect = null;
