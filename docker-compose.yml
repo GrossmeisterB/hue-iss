@@ -1,0 +1,20 @@
+services:
+  hue-iss:
+    build: .
+    image: hue-iss:latest
+    container_name: hue-iss
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      FLASK_SECRET: ${FLASK_SECRET:?FLASK_SECRET must be set in .env}
+      TIMEZONE: ${TIMEZONE:-Europe/Zurich}
+      IP_GEO_URL: ${IP_GEO_URL:-https://ipapi.co/json/}
+      DATA_DIR: /data
+      PORT: ${PORT:-5057}
+    volumes:
+      - ./data:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

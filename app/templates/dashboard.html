@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hue ISS Sichtbarkeit</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+<main x-data="dashboard">
+  <header>
+    <h1>🛰 Hue ISS Sichtbarkeit</h1>
+    <p class="subtitle">Lampe blinkt 5 Min vor und beim sichtbaren ISS-Pass.</p>
+  </header>
+
+  <section class="card">
+    <h2>📍 Standort</h2>
+    {% if loc %}
+      <p><strong>{{ loc.label or 'Unbenannt' }}</strong><br />
+        {{ '%.4f'|format(loc.lat) }}, {{ '%.4f'|format(loc.lon) }}
+        <span class="muted">({{ loc.source }})</span>
+      </p>
+    {% else %}
+      <p class="warn">Noch kein Standort gesetzt — App rechnet erst Pässe sobald Standort vorliegt.</p>
+    {% endif %}
+
+    <div class="row">
+      <label>Breitengrad
+        <input type="number" step="0.0001" x-model.number="loc.lat" />
+      </label>
+      <label>Längengrad
+        <input type="number" step="0.0001" x-model.number="loc.lon" />
+      </label>
+      <label class="grow">Label
+        <input type="text" x-model="loc.label" placeholder="z.B. Brunnen" />
+      </label>
+    </div>
+    <div class="row">
+      <button type="button" x-on:click="saveLocation">Speichern</button>
+      <button type="button" x-on:click="useBrowserGeo">📡 Browser-GPS</button>
+      <button type="button" x-on:click="useIpGeo">🌐 IP-Geo neu holen</button>
+      <span x-text="locMsg" class="muted"></span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>💡 Hue-Bridge & Lampe</h2>
+    {% if bridge_ip %}
+      <p>
+        Bridge: <code>{{ bridge_ip }}</code>
+        {% if bridge_ok %}<span class="ok">✓ verbunden</span>{% else %}<span class="warn">✗ nicht erreichbar</span>{% endif %}
+      </p>
+    {% else %}
+      <p class="warn">Noch keine Bridge gepairt.</p>
+    {% endif %}
+
+    <div class="row">
+      <button type="button" x-on:click="discoverBridge">🔍 Bridge suchen</button>
+      <template x-if="discoveredBridges.length">
+        <span>
+          Gefunden:
+          <template x-for="b in discoveredBridges" :key="b.ip">
+            <button type="button" x-on:click="pairBridge(b.ip)" x-text="b.ip"></button>
+          </template>
+          <span class="muted">— Link-Button auf der Bridge drücken, dann klicken!</span>
+        </span>
+      </template>
+      <span x-text="bridgeMsg" class="muted"></span>
+    </div>
+
+    {% if lights %}
+      <label class="block">
+        Lampe wählen
+        <select x-model.number="config.light_id" x-on:change="saveConfig">
+          <option value="">— wählen —</option>
+          {% for l in lights %}
+            <option value="{{ l.id }}" {% if light_id == l.id %}selected{% endif %}>
+              {{ l.name }}{% if not l.reachable %} (offline){% endif %}
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>✨ Effekt-Auswahl & Test</h2>
+    <p class="muted">Aktiver Effekt wird bei jedem sichtbaren Pass gefeuert. Test-Button feuert sofort auf gewählter Lampe.</p>
+    <div class="effects">
+      {% for key, e in effects.items() %}
+        <div class="effect" :class="config.effect_name === '{{ key }}' ? 'effect-active' : ''">
+          <header>
+            <label>
+              <input type="radio" name="effect" value="{{ key }}"
+                     x-model="config.effect_name" x-on:change="saveConfig" />
+              <strong>{{ e.label }}</strong>
+            </label>
+          </header>
+          <p class="muted">{{ e.description }}</p>
+          <button type="button" x-on:click="testEffect('{{ key }}')"
+                  :disabled="testingEffect === '{{ key }}'">
+            <span x-show="testingEffect !== '{{ key }}'">▶ Testen</span>
+            <span x-show="testingEffect === '{{ key }}'">⏳ läuft…</span>
+          </button>
+        </div>
+      {% endfor %}
+    </div>
+    <p class="muted" x-text="effectMsg"></p>
+  </section>
+
+  <section class="card">
+    <h2>🛰 Nächste sichtbare Pässe</h2>
+    {% if upcoming %}
+      <ul class="passes">
+        {% for p in upcoming %}
+          <li>
+            <strong>{{ p.rise_local }}</strong>
+            → {{ p.set_local }}
+            <span class="muted">({{ p.duration }} Min, max {{ p.max_elev }}°, {{ p.az_rise }}°→{{ p.az_set }}°)</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">Keine sichtbaren Pässe in den nächsten 48h.</p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>📜 Letzte Pässe</h2>
+    {% if recent %}
+      <ul class="passes">
+        {% for p in recent %}
+          <li>
+            <strong>{{ p.rise_local }}</strong>
+            <span class="muted">max {{ p.max_elev }}°</span>
+            {% if p.triggered_prewarn %}<span class="ok">⏰ Vorwarn</span>{% endif %}
+            {% if p.triggered_start %}<span class="ok">▶ Start</span>{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">Noch keine vergangenen Pässe.</p>
+    {% endif %}
+  </section>
+
+  <footer>
+    <p class="muted">
+      Zeitzone {{ local_tz }} ·
+      <a href="/healthz">/healthz</a>
+    </p>
+  </footer>
+</main>
+
+<script type="application/json" id="bootstrap-data">
+{
+  "loc": {
+    "lat": {% if loc %}{{ loc.lat }}{% else %}null{% endif %},
+    "lon": {% if loc %}{{ loc.lon }}{% else %}null{% endif %},
+    "label": "{{ (loc.label if loc else '')|e }}"
+  },
+  "config": {
+    "light_id": {% if light_id %}{{ light_id }}{% else %}null{% endif %},
+    "effect_name": "{{ effect_name }}"
+  }
+}
+</script>
+<script src="{{ url_for('static', filename='alpine.min.js') }}" defer></script>
+<script src="{{ url_for('static', filename='dashboard.js') }}" defer></script>
+</body>
+</html>
