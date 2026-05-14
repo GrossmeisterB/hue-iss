@@ -12,6 +12,8 @@ services:
       DATA_DIR: /data
       PORT: ${PORT:-5057}
     volumes:
+      # network_mode: host means the container reaches your Hue bridge via mDNS
+      # and exposes ports directly on the host.
       - ./data:/data
     logging:
       driver: json-file

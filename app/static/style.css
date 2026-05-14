@@ -116,6 +116,16 @@ code {
 .effect header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
 .effect button { margin-top: 6px; }
 
+details.advanced {
+  margin-top: 6px;
+}
+details.advanced summary {
+  cursor: pointer;
+  padding: 4px 0;
+  user-select: none;
+}
+details.advanced summary:hover { color: var(--accent); }
+
 ul.passes {
   list-style: none;
   padding: 0;

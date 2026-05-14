@@ -1,71 +1,166 @@
 # hue-iss
 
-Local web app for Synology that triggers a Philips Hue lamp effect whenever the International Space Station becomes visible (as a star, naked-eye) from your home.
+> Flash your Philips Hue lamp every time the International Space Station passes
+> overhead and is **actually visible** — naked-eye, as a star.
 
-## Was die App macht
+A small self-hosted web app that watches for ISS passes over your location and
+pulses a Hue lamp 5 minutes before and at the moment the station appears in the
+sky. Designed to run on a Raspberry Pi, a Synology, or any always-on machine
+on your home LAN.
 
-Berechnet jeden sichtbaren ISS-Pass an deinem Wohnort und lässt eine wählbare Hue-Lampe 5 Minuten vor und beim Pass-Start einen wählbaren Lichteffekt ausführen.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
+![Status](https://img.shields.io/badge/status-working-brightgreen)
 
-**„Sichtbar"** = alle drei gleichzeitig:
-- ISS-Elevation ≥ 10° über Horizont
-- ISS von Sonne beleuchtet (nicht im Erdschatten)
-- Beobachter im Zwielicht oder dunkler
+## What "visible" means
 
-## Effekt-Presets
+The ISS is geometrically above the horizon ~5–6 times per day from any given
+spot, but you can only **see** it during a narrow set of conditions:
 
-| Name | Effekt |
-|---|---|
-| Sanftes Pulsieren weiss | 15s breathe, warmweiss |
-| Schneller Blink blau | 5× kurzer Blau-Blink |
-| ISS-Sequenz | weiss↔blau, 30s |
-| Single Flash | 1× kurzer Hell-Puls |
+1. Station ≥ 10° above your horizon
+2. Station illuminated by the sun (not in Earth's shadow)
+3. You are in civil twilight or darker (sun ≥ 6° below your horizon)
 
-## Setup
+This app filters for all three simultaneously. Typically that yields 1–3 truly
+visible passes per day, usually in the hour after sunset or the hour before
+sunrise. Those are the ones you can spot as a bright moving star.
 
-### Lokal (Mac)
+## Features
+
+- Auto-discovers your Philips Hue Bridge (Link-button pairing, one click)
+- Lets you pick **any lamp** on your bridge from a dropdown
+- Four built-in light effects, each with a **Test** button so you can preview
+  on the actual lamp:
+  - Soft white breathe (15 s)
+  - Fast blue blink (~3 s)
+  - White/blue "ISS sequence" (~30 s)
+  - Single bright flash
+- Two triggers per pass: **5 min warning** + **pass start**
+- Location detection cascade: address geocode → IP-geo → browser GPS →
+  manual coordinates
+- Restores the lamp's previous state automatically after each effect
+- Strict visibility logic powered by `skyfield` + JPL ephemeris + live TLEs
+  from Celestrak
+- No accounts, no cloud — runs entirely on your LAN
+
+## Screenshot
+
+> _(coming soon — add `docs/screenshot.png` and reference it here)_
+
+## Requirements
+
+- Python 3.8 or newer
+- A Philips Hue Bridge on the same LAN as the host
+- ~50 MB free disk space (skyfield downloads the JPL `de421.bsp` ephemeris
+  on first start)
+
+That's it. No Docker required (but supported, see below).
+
+## Quick start
 
 ```bash
-cd ~/Developer/hue-iss
-python3.11 -m venv .venv
+git clone https://github.com/YOUR_USER/hue-iss.git
+cd hue-iss
+./setup.sh
+./start.sh
+```
+
+Open <http://localhost:5057> in a browser. On first launch:
+
+1. Type your city or address into **"Find location"** and press Enter
+2. Click **"Find bridge"**, then press the physical Link button on your Hue
+   Bridge, then click the discovered IP
+3. Pick a lamp from the dropdown
+4. Click **▶ Test** next to each effect preset until you find one you like
+5. Select that preset's radio button — it will fire on the next visible pass
+
+That's all. The app schedules itself in the background.
+
+## Docker
+
+```bash
+git clone https://github.com/YOUR_USER/hue-iss.git
+cd hue-iss
+cp .env.example .env
+# edit .env and set FLASK_SECRET (generate with: python -c "import secrets; print(secrets.token_hex(32))")
+docker compose up -d --build
+```
+
+> **Note:** the compose file uses `network_mode: host` so the container can
+> reach your Hue Bridge via mDNS and the bridge can respond on the LAN.
+
+## Running on a Synology NAS
+
+DSM users typically aren't in the `docker` group, so the venv path is
+simpler:
+
+```bash
+ssh youruser@your-nas
+mkdir -p /volume1/docker/hue-iss && cd /volume1/docker/hue-iss
+# upload the source (e.g. git clone, or scp/tar from your workstation)
+./setup.sh
+nohup setsid ./start.sh > data/app.log 2>&1 < /dev/null &
+```
+
+For boot persistence, register `/volume1/docker/hue-iss/start.sh` as a
+user-defined script in **DSM → Control Panel → Task Scheduler → "On boot"**.
+
+## Configuration
+
+Everything lives in `.env` and the SQLite database (`data/hue-iss.sqlite`):
+
+| Variable      | Default                       | Notes                                  |
+|---------------|-------------------------------|----------------------------------------|
+| `FLASK_SECRET`| _required_                    | 64-hex random string                   |
+| `PORT`        | `5057`                        | Listen port                            |
+| `TIMEZONE`    | `Europe/Zurich`               | Display timezone for the dashboard     |
+| `DATA_DIR`    | `./data` (or `/data` in Docker)| Where SQLite + TLE cache live         |
+| `IP_GEO_URL`  | `https://ipapi.co/json/`      | Initial location fallback              |
+
+Bridge credentials, selected lamp, selected effect, and your location all
+live in SQLite — adjust them via the dashboard.
+
+## How it works
+
+```
+TLE refresh (every 6 h)
+  ↓ Celestrak (NORAD 25544) → SQLite
+Pass predictor (every 6 h, after TLE)
+  ↓ skyfield rise/set + visibility filter (elevation + sunlit + twilight)
+  ↓ APScheduler registers two jobs per upcoming pass: T-5 min and T+0
+Trigger job fires
+  ↓ Snapshot lamp state → run effect → restore state
+```
+
+## Troubleshooting
+
+- **"Find bridge" does nothing** — check the host can reach
+  `https://discovery.meethue.com/` (returns JSON listing your bridges).
+  If your bridge isn't found, fall back to entering the bridge IP manually
+  (see the `/api/bridge/pair` endpoint).
+- **No passes shown** — wait a minute after first launch; skyfield downloads
+  the ~16 MB JPL ephemeris on first run. Check `/healthz`.
+- **Wrong location** — re-search via the address field. Coordinates from
+  `ipapi.co` are usually only city-accurate, which is fine for ISS timing
+  (10 km offset = ~1.5 seconds of pass-time drift).
+
+## Development
+
+```bash
+./setup.sh
 source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env  # FLASK_SECRET setzen
-python -m app.app
+pytest                # 13 unit/integration tests
+python -m app.app     # dev server with reload
 ```
 
-Dashboard: <http://localhost:5057>
+## Acknowledgements
 
-### Synology
+- [`skyfield`](https://rhodesmill.org/skyfield/) — Brandon Rhodes
+- TLE data from [Celestrak](https://celestrak.org/)
+- Ephemeris `de421.bsp` from JPL
+- [`phue`](https://github.com/studioimaginaire/phue) — Hue Bridge client
+- [Alpine.js](https://alpinejs.dev/) — frontend reactivity
 
-```bash
-ssh rolandbieg@192.168.0.12
-cd /volume1/docker/hue-iss
-cp .env.example .env  # FLASK_SECRET setzen
-sudo docker compose up -d --build
-```
+## License
 
-Dashboard: `http://192.168.0.12:5057`
-
-## Hue-Pairing
-
-1. Dashboard → „Bridge suchen"
-2. Link-Button auf der Bridge drücken
-3. „Pairing bestätigen" klicken (innerhalb 30s)
-4. Lampe + Effekt wählen → speichern
-
-## Standort
-
-Auto-Detection via IP-Geolocation auf ersten Aufruf. Override:
-- Browser-Geolocation-Knopf (nur unter HTTPS)
-- Karten-Pin verschieben
-- Adresse eingeben
-
-## Architektur
-
-Siehe [`docs/superpowers/specs/2026-05-14-hue-iss-sichtbarkeit-design.md`](docs/superpowers/specs/2026-05-14-hue-iss-sichtbarkeit-design.md).
-
-## Tests
-
-```bash
-pytest
-```
+MIT — see [LICENSE](LICENSE).

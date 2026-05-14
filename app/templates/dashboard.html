@@ -25,22 +25,32 @@
     {% endif %}
 
     <div class="row">
-      <label>Breitengrad
-        <input type="number" step="0.0001" x-model.number="loc.lat" />
+      <label class="grow">Ort suchen (Adresse, Stadt, PLZ …)
+        <input type="text" x-model="searchQuery" placeholder="z.B. Zürich oder eine Adresse"
+               x-on:keydown.enter.prevent="geocodeAddress" />
       </label>
-      <label>Längengrad
-        <input type="number" step="0.0001" x-model.number="loc.lon" />
-      </label>
-      <label class="grow">Label
-        <input type="text" x-model="loc.label" placeholder="z.B. Brunnen" />
-      </label>
+      <button type="button" x-on:click="geocodeAddress">🔎 Suchen</button>
     </div>
-    <div class="row">
-      <button type="button" x-on:click="saveLocation">Speichern</button>
-      <button type="button" x-on:click="useBrowserGeo">📡 Browser-GPS</button>
-      <button type="button" x-on:click="useIpGeo">🌐 IP-Geo neu holen</button>
-      <span x-text="locMsg" class="muted"></span>
-    </div>
+    <details class="advanced">
+      <summary class="muted">Erweitert: Koordinaten manuell oder GPS-Optionen</summary>
+      <div class="row">
+        <label>Breitengrad
+          <input type="number" step="0.0001" x-model.number="loc.lat" />
+        </label>
+        <label>Längengrad
+          <input type="number" step="0.0001" x-model.number="loc.lon" />
+        </label>
+        <label class="grow">Label
+          <input type="text" x-model="loc.label" placeholder="Anzeige-Name (optional)" />
+        </label>
+      </div>
+      <div class="row">
+        <button type="button" x-on:click="saveLocation">Speichern</button>
+        <button type="button" x-on:click="useBrowserGeo">📡 Browser-GPS</button>
+        <button type="button" x-on:click="useIpGeo">🌐 IP-Geo neu holen</button>
+      </div>
+    </details>
+    <p class="muted" x-text="locMsg"></p>
   </section>
 
   <section class="card">
@@ -164,7 +174,7 @@
   }
 }
 </script>
-<script src="{{ url_for('static', filename='alpine.min.js') }}" defer></script>
 <script src="{{ url_for('static', filename='dashboard.js') }}" defer></script>
+<script src="{{ url_for('static', filename='alpine.min.js') }}" defer></script>
 </body>
 </html>

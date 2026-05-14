@@ -4,7 +4,10 @@ from __future__ import annotations
 import logging
 import threading
 from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
+try:
+    from zoneinfo import ZoneInfo  # py3.9+
+except ImportError:  # py3.8
+    from backports.zoneinfo import ZoneInfo  # type: ignore
 
 from flask import Blueprint, jsonify, render_template, request
 
@@ -117,6 +120,22 @@ def api_config():
             return jsonify({"error": f"unknown effect: {name}"}), 400
         db.set_config("effect_name", name)
     return jsonify({"ok": True})
+
+
+@bp.post("/api/location/geocode")
+def api_location_geocode():
+    data = request.json or {}
+    query = (data.get("query") or "").strip()
+    if not query:
+        return jsonify({"error": "query missing"}), 400
+    loc = geo.geocode_address(query)
+    if loc is None:
+        return jsonify({"error": f"keine Treffer für '{query}'"}), 404
+    geo.save_location(loc)
+    db.append_event("location_set", {"lat": loc.lat, "lon": loc.lon, "source": "geocoded", "q": query})
+    from app.scheduler import get_scheduler
+    threading.Thread(target=get_scheduler().refresh_and_recompute, daemon=True).start()
+    return jsonify({"lat": loc.lat, "lon": loc.lon, "label": loc.label, "source": loc.source})
 
 
 @bp.post("/api/location/ip")

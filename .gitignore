@@ -10,3 +10,6 @@ data/
 htmlcov/
 .coverage
 *.log
+
+# Vendored at install time by scripts/vendor.sh
+app/static/alpine.min.js

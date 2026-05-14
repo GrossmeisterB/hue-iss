@@ -18,6 +18,32 @@ document.addEventListener("alpine:init", () => {
     locMsg: "",
     effectMsg: "",
     testingEffect: null,
+    searchQuery: "",
+
+    async geocodeAddress() {
+      const q = (this.searchQuery || "").trim();
+      if (!q) {
+        this.locMsg = "Bitte einen Ort eingeben";
+        return;
+      }
+      this.locMsg = "Suche '" + q + "'…";
+      const resp = await fetch("/api/location/geocode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: q }),
+      });
+      const data = await resp.json();
+      if (resp.ok) {
+        this.loc.lat = data.lat;
+        this.loc.lon = data.lon;
+        this.loc.label = data.label;
+        this.locMsg = "✓ Gefunden: " + data.label + " · Pässe werden neu berechnet";
+        this.searchQuery = "";
+        setTimeout(() => location.reload(), 1500);
+      } else {
+        this.locMsg = data.error || "Keine Treffer";
+      }
+    },
 
     async saveLocation() {
       this.locMsg = "Speichere…";

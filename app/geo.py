@@ -80,3 +80,30 @@ def resolve() -> Optional[Location]:
         save_location(ip)
         return ip
     return None
+
+
+def geocode_address(query: str, timeout: float = 8.0) -> Optional[Location]:
+    """Forward-geocode a free-text address via Nominatim/OSM."""
+    if not query.strip():
+        return None
+    try:
+        resp = requests.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": query, "format": "json", "limit": 1, "addressdetails": 1},
+            headers={"User-Agent": "hue-iss/0.1 (private LAN dashboard)"},
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        results = resp.json()
+        if not results:
+            return None
+        r = results[0]
+        return Location(
+            lat=float(r["lat"]),
+            lon=float(r["lon"]),
+            label=r.get("display_name", query)[:120],
+            source="geocoded",
+        )
+    except (requests.RequestException, ValueError, KeyError) as e:
+        log.warning("Geocoding failed for %r: %s", query, e)
+        return None
